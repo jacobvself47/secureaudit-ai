@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "secureaudit-ai"
+version = "0.1.0"
+description = "AI-powered Kubernetes RBAC compliance analysis"
+authors = ["Jake"]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.11"
+kubernetes = "^30.1.0"
+anthropic = "^0.39.0"
+pydantic = "^2.0.0"
+python-dotenv = "^1.0.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^8.0.0"
+black = "^24.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

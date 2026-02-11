@@ -1,0 +1,90 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/backup-repo.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(kubectl get *)",
+      "Bash(kubectl describe *)",
+      "Bash(kubectl logs *)",
+      "Bash(kubectl port-forward *)",
+      "Bash(kubectl exec *)",
+      "Bash(kubectl top *)",
+      "Bash(docker ps *)",
+      "Bash(docker images *)",
+      "Bash(docker logs *)",
+      "Bash(docker inspect *)",
+      "Bash(docker build *)",
+      "Bash(terraform init *)",
+      "Bash(terraform plan *)",
+      "Bash(terraform validate *)",
+      "Bash(terraform fmt *)",
+      "Bash(terraform show *)",
+      "Bash(helm list *)",
+      "Bash(helm status *)",
+      "Bash(helm get *)",
+      "Bash(helm template *)",
+      "Bash(az account *)",
+      "Bash(az group list *)",
+      "Bash(az resource list *)",
+      "Bash(az vm list *)",
+      "Bash(az aks list *)"
+    ],
+    "ask": [
+      "Bash(kubectl delete *)",
+      "Bash(kubectl scale *)",
+      "Bash(kubectl rollout restart *)",
+      "Bash(kubectl rollout undo *)",
+      "Bash(kubectl cordon *)",
+      "Bash(kubectl uncordon *)",
+      "Bash(kubectl taint *)",
+      "Bash(kubectl patch *)",
+      "Bash(kubectl apply *)",
+      "Bash(docker rm *)",
+      "Bash(docker rmi *)",
+      "Bash(docker stop *)",
+      "Bash(docker kill *)",
+      "Bash(docker container prune *)",
+      "Bash(docker image prune *)",
+      "Bash(docker volume rm *)",
+      "Bash(docker network rm *)",
+      "Bash(terraform apply *)",
+      "Bash(terraform destroy *)",
+      "Bash(terraform import *)",
+      "Bash(terraform state rm *)",
+      "Bash(terraform state mv *)",
+      "Bash(helm install *)",
+      "Bash(helm upgrade *)",
+      "Bash(helm uninstall *)",
+      "Bash(helm rollback *)",
+      "Bash(az vm delete *)",
+      "Bash(az vm deallocate *)",
+      "Bash(az vm stop *)",
+      "Bash(az group delete *)",
+      "Bash(az aks delete *)",
+      "Bash(az storage account delete *)",
+      "Bash(az keyvault delete *)",
+      "Bash(az sql server delete *)",
+      "Bash(az network vnet delete *)",
+      "Bash(rm -rf *)",
+      "Bash(git push --force *)",
+      "Bash(git reset --hard *)",
+      "Bash(git clean -fd *)"
+    ],
+    "deny": [
+      "Bash(kubectl drain *)",
+      "Bash(docker system prune -a *)",
+      "Bash(terraform force-unlock *)",
+      "Bash(az account set *)"
+    ]
+  }
+}

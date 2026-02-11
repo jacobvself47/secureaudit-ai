@@ -1,0 +1,15 @@
+# Environment
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+
+# Output files
+*.log
+risk_assessment_report.json
+.claude/settings.local.json

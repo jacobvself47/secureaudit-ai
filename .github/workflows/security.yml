@@ -1,0 +1,14 @@
+name: Security Scans
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  sast-scan:
+    uses: jacobvself47/security_controls/.github/workflows/sast-scan.yml@main
+
+  secret-scan:
+    uses: jacobvself47/security_controls/.github/workflows/secret-scanning.yml@main

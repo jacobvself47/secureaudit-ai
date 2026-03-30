@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rbac-grants",
+  "title": "RBAC Grants",
+  "description": "Complete enumeration of Kubernetes RBAC grants. Produced by rbac-agent. Consumed by entra-agent and risk-agent.",
+  "type": "object",
+  "required": ["meta", "grants"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["cluster", "context", "timestamp", "grant_count"],
+      "properties": {
+        "cluster": { "type": "string", "description": "Cluster name from kubeconfig context" },
+        "context": { "type": "string", "description": "Active kubectl context name" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "grant_count": { "type": "integer" },
+        "subject_counts": {
+          "type": "object",
+          "description": "Count of grants by subject kind",
+          "properties": {
+            "User": { "type": "integer" },
+            "Group": { "type": "integer" },
+            "ServiceAccount": { "type": "integer" }
+          }
+        },
+        "namespace_count": { "type": "integer" },
+        "namespaces": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "grants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["binding", "binding_kind", "role", "role_kind", "subject_kind", "subject_name", "scope"],
+        "properties": {
+          "binding": { "type": "string", "description": "ClusterRoleBinding or RoleBinding resource name" },
+          "binding_kind": { "type": "string", "enum": ["ClusterRoleBinding", "RoleBinding"] },
+          "role": { "type": "string" },
+          "role_kind": { "type": "string", "enum": ["ClusterRole", "Role"] },
+          "subject_kind": { "type": "string", "enum": ["User", "Group", "ServiceAccount"] },
+          "subject_name": { "type": "string" },
+          "subject_namespace": { "type": ["string", "null"], "description": "Only set for ServiceAccount subjects" },
+          "scope": { "type": "string", "enum": ["cluster", "namespace"] },
+          "scope_namespace": { "type": ["string", "null"], "description": "Namespace for RoleBindings; null for ClusterRoleBindings" },
+          "rules": {
+            "type": "array",
+            "description": "Resolved rules from the bound Role or ClusterRole",
+            "items": {
+              "type": "object",
+              "properties": {
+                "api_groups": { "type": "array", "items": { "type": "string" } },
+                "resources": { "type": "array", "items": { "type": "string" } },
+                "verbs": { "type": "array", "items": { "type": "string" } },
+                "resource_names": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

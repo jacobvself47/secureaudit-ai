@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "audit-findings",
+  "title": "Audit Findings",
+  "description": "Prioritized security findings from CIS Benchmark and Entra ID checks. Produced by risk-agent. Consumed by report-agent.",
+  "type": "object",
+  "required": ["meta", "summary", "findings", "aks_infra_findings"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["cluster", "timestamp", "entra_available", "total_grants_analyzed"],
+      "properties": {
+        "cluster": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "entra_available": { "type": "boolean", "description": "True when entra-context.json was loaded" },
+        "total_grants_analyzed": { "type": "integer" },
+        "grants_filtered_as_aks_system": { "type": "integer" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "cluster": { "type": "string" },
+        "total_findings": { "type": "integer" },
+        "by_severity": {
+          "type": "object",
+          "properties": {
+            "CRITICAL": { "type": "integer" },
+            "HIGH": { "type": "integer" },
+            "MEDIUM": { "type": "integer" },
+            "LOW": { "type": "integer" }
+          }
+        },
+        "needs_investigation_count": { "type": "integer" },
+        "blast_radius": {
+          "type": "object",
+          "properties": {
+            "direct_user_bindings": { "type": "integer" },
+            "group_bindings": { "type": "integer" },
+            "humans_with_cluster_admin": { "type": "array", "items": { "type": "string" } },
+            "humans_with_impersonate": { "type": "array", "items": { "type": "string" } },
+            "note": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "description": "Actionable findings sorted CRITICAL→LOW, cluster-scoped before namespace-scoped",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "aks_infra_findings": {
+      "type": "array",
+      "description": "AKS infrastructure bindings — informational only, not actionable",
+      "items": { "$ref": "#/$defs/finding" }
+    }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "required": ["id", "check", "severity", "subject", "grant", "needs_investigation"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable ID: {check}-{md5(check:kind:name:binding:scope_namespace)[:6]}",
+          "examples": ["CIS-5.1.1-A3F9C2"]
+        },
+        "check": {
+          "type": "string",
+          "description": "CIS control (CIS-5.1.x) or Entra check (E1–E7)",
+          "examples": ["CIS-5.1.1", "E2"]
+        },
+        "severity": { "type": "string", "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"] },
+        "severity_source": { "type": "string", "description": "Why this severity was assigned" },
+        "title": { "type": "string" },
+        "subject": {
+          "type": "object",
+          "properties": {
+            "kind": { "type": "string", "enum": ["User", "Group", "ServiceAccount"] },
+            "name": { "type": "string" },
+            "namespace": { "type": ["string", "null"] }
+          }
+        },
+        "grant": {
+          "type": "object",
+          "properties": {
+            "binding": { "type": "string" },
+            "binding_kind": { "type": "string" },
+            "role": { "type": "string" },
+            "role_kind": { "type": "string" },
+            "scope": { "type": "string", "enum": ["cluster", "namespace"] },
+            "scope_namespace": { "type": ["string", "null"] }
+          }
+        },
+        "matched_rules": {
+          "type": "array",
+          "description": "The specific rules that triggered this finding"
+        },
+        "aks_infra": { "type": "boolean", "description": "True for AKS-managed bindings — goes in aks_infra_findings" },
+        "entra_context": {
+          "type": "object",
+          "description": "Inlined Entra ID context for this subject. available=false when entra-context.json was not loaded.",
+          "properties": {
+            "available": { "type": "boolean" },
+            "for_group": { "type": ["object", "null"] },
+            "for_user": { "type": ["object", "null"] },
+            "for_service_account": { "type": ["object", "null"] },
+            "multi_path": { "type": ["object", "null"] },
+            "missing": { "type": "boolean" },
+            "not_found": { "type": "boolean" }
+          }
+        },
+        "needs_investigation": {
+          "type": "boolean",
+          "description": "True when Entra context is incomplete — use suggested_tool to fill the gap"
+        },
+        "investigation_reasons": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Why this finding needs investigation"
+        },
+        "suggested_tool": {
+          "type": ["string", "null"],
+          "description": "Tool invocation to resolve the gap, e.g. 'get_group.py <id>'"
+        }
+      }
+    }
+  }
+}

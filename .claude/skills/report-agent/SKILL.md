@@ -2,7 +2,7 @@
 name: report-agent
 description: Reporting domain agent. Reads audit-findings.json and investigation tool outputs, then writes the full human-readable security report. This agent has no execution access — it only reads artifacts and writes prose.
 compatibility: Requires audit-findings.json in the working directory.
-allowed-tools: Read
+allowed-tools: Read Write
 ---
 
 # Report Agent
@@ -131,6 +131,12 @@ These are **mandatory** whenever `entra_context.available == true`. Do not omit 
 **Rationale assessment:** <Does the access make sense given who this is? Flag if surprising.>
 **Reviewer action:** [ ] Confirmed appropriate  [ ] Requires justification  [ ] Revoke
 ```
+
+---
+
+## Output
+
+After writing the report to the conversation, write the same content to `audit-report.md` in the working directory using the Write tool. The filename is fixed — do not use a date-stamped or cluster-specific name. Confirm to the user that the file has been written and give the absolute path.
 
 ---
 

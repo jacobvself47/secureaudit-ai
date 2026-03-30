@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "entra-context",
+  "title": "Entra Context",
+  "description": "Resolved Entra ID identity context for all RBAC principals. Produced by entra-agent. Consumed by risk-agent.",
+  "type": "object",
+  "required": ["meta", "summary", "users", "groups", "workload_identities", "multi_path_access", "errors"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["timestamp", "cluster"],
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "cluster": { "type": "string" }
+      }
+    },
+    "azure_context": {
+      "type": "object",
+      "description": "Output of az account show — subscription and tenant context"
+    },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "orphaned_groups": { "type": "integer", "description": "Groups bound in RBAC but deleted from Entra ID" },
+        "guest_users_in_groups": { "type": "integer" },
+        "disabled_accounts_in_groups": { "type": "integer" },
+        "users_with_multi_path_access": { "type": "integer" },
+        "workload_identity_bindings": { "type": "integer" },
+        "unresolved_managed_identities": { "type": "integer" }
+      }
+    },
+    "users": {
+      "type": "array",
+      "description": "Direct User subjects resolved against Entra ID",
+      "items": {
+        "type": "object",
+        "required": ["subject_name"],
+        "properties": {
+          "subject_name": { "type": "string", "description": "Kubernetes RBAC subject name (usually UPN)" },
+          "kind": { "type": "string", "enum": ["User", "ServicePrincipal"] },
+          "display_name": { "type": ["string", "null"] },
+          "upn": { "type": ["string", "null"] },
+          "object_id": { "type": ["string", "null"] },
+          "user_type": { "type": ["string", "null"], "description": "Member or Guest" },
+          "account_enabled": { "type": ["boolean", "null"] },
+          "app_id": { "type": ["string", "null"], "description": "Only for ServicePrincipal kind" },
+          "error": { "type": "string", "description": "Present when principal not found in Entra ID" }
+        }
+      }
+    },
+    "groups": {
+      "type": "array",
+      "description": "Group subjects resolved against Entra ID",
+      "items": {
+        "type": "object",
+        "required": ["object_id", "orphaned"],
+        "properties": {
+          "object_id": { "type": "string" },
+          "display_name": { "type": ["string", "null"] },
+          "orphaned": { "type": "boolean", "description": "True if the group no longer exists in Entra ID" },
+          "owners": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "display_name": { "type": ["string", "null"] },
+                "upn": { "type": ["string", "null"] },
+                "object_id": { "type": ["string", "null"] }
+              }
+            }
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": { "type": "string", "enum": ["User", "ServicePrincipal", "Group", "Unknown"] },
+                "display_name": { "type": ["string", "null"] },
+                "upn": { "type": ["string", "null"] },
+                "object_id": { "type": ["string", "null"] },
+                "app_id": { "type": ["string", "null"] },
+                "user_type": { "type": ["string", "null"] },
+                "account_enabled": { "type": ["boolean", "null"] }
+              }
+            }
+          },
+          "sub_groups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "object_id": { "type": "string" },
+                "display_name": { "type": ["string", "null"] }
+              }
+            }
+          },
+          "member_count": { "type": "integer" },
+          "member_type_counts": { "type": "object" }
+        }
+      }
+    },
+    "workload_identities": {
+      "type": "array",
+      "description": "ServiceAccount subjects with Azure managed identity bindings",
+      "items": {
+        "type": "object",
+        "required": ["sa_name", "namespace", "binding_type"],
+        "properties": {
+          "sa_name": { "type": "string" },
+          "namespace": { "type": "string" },
+          "binding_type": { "type": "string", "enum": ["workload-identity", "pod-identity-legacy"] },
+          "client_id": { "type": ["string", "null"] },
+          "tenant_id": { "type": ["string", "null"] },
+          "pod_identity_binding": { "type": ["string", "null"] },
+          "managed_identity": {
+            "type": "object",
+            "properties": {
+              "status": { "type": "string", "enum": ["resolved", "unresolved", "legacy-binding"] },
+              "name": { "type": ["string", "null"] },
+              "resource_group": { "type": ["string", "null"] },
+              "subscription_id": { "type": ["string", "null"] },
+              "principal_id": { "type": ["string", "null"] },
+              "azure_rbac_roles": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "role": { "type": "string" },
+                    "scope": { "type": "string" },
+                    "resource_group": { "type": ["string", "null"] }
+                  }
+                }
+              },
+              "error": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "multi_path_access": {
+      "type": "object",
+      "description": "Users reachable via 2+ groups that each have cluster grants. Keys are UPNs.",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "group_id": { "type": "string" },
+            "group_name": { "type": ["string", "null"] },
+            "display_name": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "description": "Lookup failures that did not abort the run — partial results are usable",
+      "items": {
+        "type": "object",
+        "properties": {
+          "context": { "type": "string" },
+          "error": { "type": "string" }
+        }
+      }
+    }
+  }
+}

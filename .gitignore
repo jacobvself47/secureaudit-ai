@@ -13,3 +13,9 @@ __pycache__/
 *.log
 risk_assessment_report.json
 .claude/settings.local.json
+
+# Runtime audit artifacts (produced by rbac-agent, entra-agent, risk-agent)
+rbac-grants.json
+entra-context.json
+audit-findings.json
+audit-report.md

@@ -4,13 +4,18 @@ set -e
 SPEC_FILE=".claude/SPEC.md"
 CLAUDE_FILE=".claude/CLAUDE.md"
 DECISIONS_FILE=".claude/DECISIONS.md"
-OFF_LIMITS=("agents/rbac-agent/rules" "agents/entra-agent/rules" "terraform")
+OFF_LIMITS=(".claude/skills/contracts" ".claude/skills/entra-agent/scripts/collect.py" "terraform")
 MAX_ITERATIONS=5
 ITERATION=0
 
 echo "🚀 Starting autonomous run — $(date)"
 echo "Branch: $(git branch --show-current)"
 echo "Spec: $SPEC_FILE"
+
+# Reset ephemeral run artifacts
+> .claude/last-output.txt
+> .claude/DECISIONS.md
+echo "🧹 Cleared last-output.txt and DECISIONS.md"
 
 # Load .env if present and key not already in environment
 if [[ -z "$ANTHROPIC_API_KEY" && -f ".env" ]]; then
@@ -46,6 +51,8 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
     "Read $CLAUDE_FILE and $DECISIONS_FILE for context.
      Your goal is in $SPEC_FILE.
      Execute the next uncompleted task.
+     After any code changes, run: source .venv/bin/activate && python -m pytest tests/ -v
+     All tests must pass before you proceed or signal completion.
      Log your decisions to $DECISIONS_FILE.
      When all success criteria are met, output DONE." \
     > .claude/last-output.txt 2>&1
@@ -63,9 +70,9 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
     break
   fi
 
-  # Check for off-limits file modifications
+  # Check for off-limits file modifications (staged + unstaged)
   for path in "${OFF_LIMITS[@]}"; do
-    if git diff --name-only | grep -q "$path"; then
+    if git diff --name-only HEAD | grep -q "$path"; then
       echo "❌ HALT: Agent modified off-limits path: $path"
       git checkout -- .
       exit 1
@@ -96,8 +103,8 @@ echo "Decisions: cat $DECISIONS_FILE"
 if grep -q "DONE" .claude/last-output.txt; then
   echo "✅ Agent signaled completion — opening PR"
   gh pr create \
-    --title "feat: CIS-5.1.4 subresource gap and admin/edit cluster binding check" \
-    --body "$(cat .claude/DECISIONS.md)" \
+    --title "feat: finalize E8 — severity escalation, best-grant selection, and tests" \
+    --body "$(printf '## Spec\n\n'; cat .claude/SPEC.md; printf '\n\n## Decisions\n\n'; cat .claude/DECISIONS.md 2>/dev/null || echo 'No decisions logged.')" \
     --base main \
     --head "$(git branch --show-current)" \
     --label "autonomous-run"

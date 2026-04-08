@@ -570,42 +570,58 @@ def run_checks(grants: list, entra: dict | None) -> list:
             "Azure Kubernetes Service RBAC Writer",
             "Contributor", "Owner", "User Access Administrator",
         }
+        # Roles that grant admin-level cluster access — used to escalate User findings to CRITICAL
+        E8_CRITICAL_AZURE_ROLES = {
+            "Azure Kubernetes Service Cluster Admin Role",
+            "Azure Kubernetes Service RBAC Cluster Admin",
+            "Owner",
+            "User Access Administrator",
+        }
         for u in entra.get("users", []):
             if u.get("error") or not u.get("azure_rbac_roles"):
                 continue
             aks_roles = [r for r in u["azure_rbac_roles"] if r.get("role") in AKS_AZURE_ROLES]
             if not aks_roles:
                 continue
-            for g in grants:
-                if g["subject_name"] == u["subject_name"] and not is_aks_system(g["subject_name"]):
-                    findings.append(make_finding(
-                        "E8", "HIGH",
-                        f"Dual K8s+Azure RBAC cluster access — {u['subject_name']}",
-                        g, [],
-                        entra_context={"available": True, "for_user": u, "azure_rbac_path": aks_roles},
-                        needs_investigation=True,
-                        investigation_reasons=[f"Subject has both K8s RBAC binding and Azure RBAC path: {[r['role'] for r in aks_roles]}"],
-                        suggested_tool=f"get_user.py {u['subject_name']}",
-                    ))
-                    break
+            subject_grants = [
+                g for g in grants
+                if g["subject_name"] == u["subject_name"] and not is_aks_system(g["subject_name"])
+            ]
+            if subject_grants:
+                best = next((g for g in subject_grants if g["scope"] == "cluster"), subject_grants[0])
+                sev = "CRITICAL" if any(r["role"] in E8_CRITICAL_AZURE_ROLES for r in aks_roles) else "HIGH"
+                findings.append(make_finding(
+                    "E8", sev,
+                    f"Dual K8s+Azure RBAC cluster access — {u['subject_name']}",
+                    best, [],
+                    entra_context={"available": True, "for_user": u, "azure_rbac_path": aks_roles},
+                    needs_investigation=True,
+                    investigation_reasons=[f"Subject has both K8s RBAC binding and Azure RBAC path: {[r['role'] for r in aks_roles]}"],
+                    suggested_tool=f"get_user.py {u['subject_name']}",
+                ))
         for grp in entra.get("groups", []):
             if grp.get("orphaned") or not grp.get("azure_rbac_roles"):
                 continue
             aks_roles = [r for r in grp["azure_rbac_roles"] if r.get("role") in AKS_AZURE_ROLES]
             if not aks_roles:
                 continue
-            for g in grants:
-                if g["subject_kind"] == "Group" and g["subject_name"] == grp["object_id"] and not is_aks_system(grp["object_id"]):
-                    findings.append(make_finding(
-                        "E8", "HIGH",
-                        f"Dual K8s+Azure RBAC cluster access — group {grp.get('display_name') or grp['object_id']}",
-                        g, [],
-                        entra_context={"available": True, "for_group": grp, "azure_rbac_path": aks_roles},
-                        needs_investigation=True,
-                        investigation_reasons=[f"Group has both K8s RBAC binding and Azure RBAC path: {[r['role'] for r in aks_roles]}"],
-                        suggested_tool=f"get_group.py {grp['object_id']}",
-                    ))
-                    break
+            subject_grants = [
+                g for g in grants
+                if g["subject_kind"] == "Group" and g["subject_name"] == grp["object_id"]
+                and not is_aks_system(grp["object_id"])
+            ]
+            if subject_grants:
+                best = next((g for g in subject_grants if g["scope"] == "cluster"), subject_grants[0])
+                # Groups always CRITICAL: a group-held Azure admin path affects all members
+                findings.append(make_finding(
+                    "E8", "CRITICAL",
+                    f"Dual K8s+Azure RBAC cluster access — group {grp.get('display_name') or grp['object_id']}",
+                    best, [],
+                    entra_context={"available": True, "for_group": grp, "azure_rbac_path": aks_roles},
+                    needs_investigation=True,
+                    investigation_reasons=[f"Group has both K8s RBAC binding and Azure RBAC path: {[r['role'] for r in aks_roles]}"],
+                    suggested_tool=f"get_group.py {grp['object_id']}",
+                ))
 
         # E9: CI/CD identity authenticating via client secret (no OIDC federation)
         for u in entra.get("users", []):

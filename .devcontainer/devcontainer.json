@@ -3,6 +3,10 @@
   "image": "mcr.microsoft.com/devcontainers/python:3.11",
 
   "features": {
+    // Node.js — required to install Claude Code CLI via npm
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    },
     // Kubernetes CLI — helm and minikube not needed
     "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
       "version": "latest",
@@ -22,10 +26,10 @@
 
   "workspaceFolder": "/workspace",
 
-  "postCreateCommand": "pip install -r requirements.txt && git config --global user.email '${localEnv:GIT_EMAIL}' && git config --global user.name '${localEnv:GIT_NAME}'",
+  "postCreateCommand": "pip install -r requirements.txt && npm install -g @anthropic-ai/claude-code && git config --global user.email '${localEnv:GIT_EMAIL}' && git config --global user.name '${localEnv:GIT_NAME}'",
 
   "remoteEnv": {
-    // Anthropic API key for Claude Code
+    // Anthropic API key — Claude Code uses this directly, bypassing OAuth subscription limits
     "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}",
     // GitHub token — gh CLI uses this to authenticate and open PRs
     "GH_TOKEN": "${localEnv:GH_TOKEN}",

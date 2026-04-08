@@ -24,6 +24,7 @@ secureaudit (orchestrator)
 ## Artifact Contracts
 
 Schemas live in `.claude/skills/contracts/`. These are the interfaces between agents — treat them as an API.
+Artifact schemas in .claude/skills/contracts/ are frozen. Never modify them.
 
 | File | Producer | Consumers |
 |---|---|---|
@@ -69,6 +70,8 @@ Skill definitions: `.claude/skills/`
 - Activate: `source .venv/bin/activate`
 - Install deps: `pip install -r requirements.txt`
 - Kubernetes: kubectl configured, active context is AKS
+> Note for autonomous development runs: if you need to execute a test audit to validate new code, use the kind-secureaudit-local context, not the active AKS context.
+Never run against AKS to test code changes.
 - Azure: `az login` required for `--with-entra`
 - Shared library: `.claude/skills/shared/lib/grants.py`
 
@@ -97,13 +100,22 @@ Skill definitions: `.claude/skills/`
 - E9 CI/CD identity with no OIDC federation (client-secret auth)
 
 **LLM judgment (report-agent):**
-- Group access appropriateness — every non-system Group with cluster access is reviewed for business justification. The LLM reasons about whether the access makes sense given group name, namespace, and role. This is intentionally not a deterministic rule.
+- Group access appropriateness — every non-system Group with cluster or namespace access is reviewed for business justification. The LLM reasons about whether the access makes sense given group name, namespace, and role. This is intentionally not a deterministic rule.
+- User access appropriateness - every user with cluster or namespace access is reviewed for business justification.  The LLM reasons about whether the access makes sense given group name, namespace, and role.  This is intentionally not a deterministic rule.
 
 ---
 
-## Known Gaps
+## Known Gaps (implement next)
 
-No outstanding known gaps.
+1. **`pods/exec` subresource** — CIS-5.1.4 misses container exec grants because `"pods/exec"` doesn't match `"pods"` in a list. Fix: `any(r == "pods" or r.startswith("pods/") for r in resources)` in `summarize_rules()` and the CIS-5.1.4 check in `analyze.py`.
+
+2. **`admin`/`edit` ClusterRole cluster-wide** — Built-in `admin` bound via ClusterRoleBinding is functionally near-cluster-admin but has no wildcard resources, so existing rules miss it. Fix: new CRITICAL check in `analyze.py` for `role in ("admin", "edit")` with `scope == "cluster"`.
+
+3. **Azure RBAC cross-reference (E8)** — entra-agent already fetches Azure RBAC for managed identities. Extend it to also call `az role assignment list --assignee <object-id> --all` for Groups and Users, storing AKS-relevant roles in `entra-context.json`. risk-agent then emits E8 when a K8s subject also has an Azure RBAC path to the cluster.
+
+4. **OIDC federation check (E9)** — When a subject resolves to a ServicePrincipal, call `az ad app federated-credential list --id <app-id>`. If empty, the SP authenticates via client secret. Add E9 finding for CI/CD identities without workload identity federation.
+
+5. **Group access appropriateness** — Add `groups_with_access[]` to `audit-findings.json` (all non-system Groups with any binding, even clean ones). report-agent reasons about each one.
 
 ---
 

@@ -21,9 +21,10 @@
 
   "mounts": [
     // Scoped kubeconfig — read-only, kind cluster only, cannot reach AKS
-    "source=${localEnv:HOME}/.kube/kind-secureaudit,target=/root/.kube/config,type=bind,readonly"
+    "source=${localEnv:HOME}/.kube/kind-secureaudit-local,target=/root/.kube/config,type=bind,readonly"
   ],
 
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
   "workspaceFolder": "/workspace",
 
   "postCreateCommand": "pip install -r requirements.txt && npm install -g @anthropic-ai/claude-code && git config --global user.email '${localEnv:GIT_EMAIL}' && git config --global user.name '${localEnv:GIT_NAME}'",

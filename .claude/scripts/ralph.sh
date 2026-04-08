@@ -12,6 +12,14 @@ echo "🚀 Starting autonomous run — $(date)"
 echo "Branch: $(git branch --show-current)"
 echo "Spec: $SPEC_FILE"
 
+# Load .env if present and key not already in environment
+if [[ -z "$ANTHROPIC_API_KEY" && -f ".env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
+fi
+
 # Safety check — API key must be set so runs bill to API, not subscription
 if [[ -z "$ANTHROPIC_API_KEY" ]]; then
   echo "❌ HALT: ANTHROPIC_API_KEY is not set"
@@ -65,9 +73,14 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
   done
 
   # Atomic commit if there are changes
-  if ! git diff --quiet; then
+  if ! git diff --quiet || ! git diff --cached --quiet; then
     git add -A
-    git commit -m "autonomous: iteration $ITERATION — $(date +%Y%m%d-%H%M%S)"
+    # Pre-commit hooks (e.g. trailing-whitespace) may auto-fix files and exit 1.
+    # Re-stage and retry once so those fixes land in the commit.
+    if ! git commit -m "autonomous: iteration $ITERATION — $(date +%Y%m%d-%H%M%S)"; then
+      git add -A
+      git commit -m "autonomous: iteration $ITERATION — $(date +%Y%m%d-%H%M%S)"
+    fi
     echo "✅ Committed iteration $ITERATION"
   fi
 

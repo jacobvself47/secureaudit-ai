@@ -111,11 +111,9 @@ Never run against AKS to test code changes.
 
 2. **`admin`/`edit` ClusterRole cluster-wide** — Built-in `admin` bound via ClusterRoleBinding is functionally near-cluster-admin but has no wildcard resources, so existing rules miss it. Fix: new CRITICAL check in `analyze.py` for `role in ("admin", "edit")` with `scope == "cluster"`.
 
-3. **Azure RBAC cross-reference (E8)** — entra-agent already fetches Azure RBAC for managed identities. Extend it to also call `az role assignment list --assignee <object-id> --all` for Groups and Users, storing AKS-relevant roles in `entra-context.json`. risk-agent then emits E8 when a K8s subject also has an Azure RBAC path to the cluster.
+3. **OIDC federation check (E9)** — When a subject resolves to a ServicePrincipal, call `az ad app federated-credential list --id <app-id>`. If empty, the SP authenticates via client secret. Add E9 finding for CI/CD identities without workload identity federation.
 
-4. **OIDC federation check (E9)** — When a subject resolves to a ServicePrincipal, call `az ad app federated-credential list --id <app-id>`. If empty, the SP authenticates via client secret. Add E9 finding for CI/CD identities without workload identity federation.
-
-5. **Group access appropriateness** — Add `groups_with_access[]` to `audit-findings.json` (all non-system Groups with any binding, even clean ones). report-agent reasons about each one.
+4. **Group access appropriateness** — Add `groups_with_access[]` to `audit-findings.json` (all non-system Groups with any binding, even clean ones). report-agent reasons about each one.
 
 ---
 

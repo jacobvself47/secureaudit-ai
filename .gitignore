@@ -14,6 +14,10 @@ __pycache__/
 risk_assessment_report.json
 .claude/settings.local.json
 
+# Ralph loop run artifacts (ephemeral — used for PR description only)
+.claude/DECISIONS.md
+.claude/last-output.txt
+
 # Runtime audit artifacts (produced by rbac-agent, entra-agent, risk-agent)
 rbac-grants.json
 entra-context.json

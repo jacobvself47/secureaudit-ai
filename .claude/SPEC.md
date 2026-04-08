@@ -1,99 +1,144 @@
-# Stage 1 Spec: CIS Detection Rule Fixes
+# Stage 2 Spec: E8 — Azure RBAC Cross-Reference Finalization
 
 ## Goal
-Fix two known gaps in the deterministic detection logic. Both fixes
-are isolated to `analyze.py` in the rbac-agent. No schema changes,
-no new agents, no external API calls.
+
+Finalize E8 (dual K8s+Azure RBAC path detection). The core plumbing is already in place:
+`collect.py` already fetches `azure_rbac_roles` for Users, ServicePrincipals, and Groups, and
+`analyze.py` already has the E8 detection loop. What's missing: severity escalation, best-grant
+selection, tests, and removing the stale CLAUDE.md gap entry.
 
 ---
 
-## Gap 1 — pods/exec Subresource Missing from CIS-5.1.4
+## Gap 1 — Severity Escalation
 
 ### Problem
-CIS-5.1.4 checks whether a subject has pod creation rights by matching
-`"pods"` in the resources list. It misses grants expressed as
-`"pods/exec"`, `"pods/log"`, or other subresource variants because
-string equality fails on subresource notation.
+E8 always emits `HIGH` regardless of how powerful the Azure RBAC role is. Per the escalation
+rules (cluster-scoped > namespace-scoped, group subjects escalate), the severity should reflect
+the actual risk of the Azure RBAC path.
 
 ### Fix
-In `summarize_rules()` and the CIS-5.1.4 check in `analyze.py`,
-replace the resource match logic with:
+Add a `E8_CRITICAL_AZURE_ROLES` constant at the start of the E8 block in `analyze.py`:
 
 ```python
-any(r == "pods" or r.startswith("pods/") for r in resources)
+E8_CRITICAL_AZURE_ROLES = {
+    "Azure Kubernetes Service Cluster Admin Role",
+    "Azure Kubernetes Service RBAC Cluster Admin",
+    "Owner",
+    "User Access Administrator",
+}
 ```
 
-Apply this pattern consistently wherever pod resource matching occurs.
+Derive severity before calling `make_finding`:
+- For **Users**: `"CRITICAL"` if any matched Azure role is in `E8_CRITICAL_AZURE_ROLES`, else `"HIGH"`
+- For **Groups**: always `"CRITICAL"` — a group-held Azure admin path affects all members
 
 ### Files In Scope
-- `agents/rbac-agent/analyze.py` — detection logic only
-- `tests/` — add or update a test case covering `pods/exec`
-
-### Files Off-Limits
-- `.claude/skills/contracts/` — do not touch schemas
-- `agents/entra-agent/` — out of scope for this stage
-- `agents/risk-agent/` — out of scope for this stage
-- `agents/report-agent/` — out of scope for this stage
+- `.claude/skills/risk-agent/scripts/analyze.py` — E8 block only (lines ~562–608)
+- `tests/test_e8_azure_rbac_crossref.py` — new test file
 
 ---
 
-## Gap 2 — admin/edit ClusterRole Cluster-Wide Binding
+## Gap 2 — Best-Grant Selection
 
 ### Problem
-The existing cluster-admin check (CIS-5.1.1) only catches explicit
-`cluster-admin` bindings. The built-in `admin` and `edit` ClusterRoles
-bound via ClusterRoleBinding give near-equivalent permissions cluster-wide
-but contain no wildcard resources, so current rules produce no finding.
+The current E8 loops break on the first matching grant for a subject. If the subject has both
+a cluster-scoped and a namespace-scoped K8s binding, the namespace-scoped one may be reported,
+understating the risk.
 
 ### Fix
-Add a new CRITICAL severity check in `analyze.py`:
+Replace the `for g in grants: ... break` pattern in both the user and group E8 loops with a
+cluster-scope preference:
 
 ```python
-if role in ("admin", "edit") and scope == "cluster":
-    # Emit CRITICAL finding — near-cluster-admin access
+subject_grants = [
+    g for g in grants
+    if g["subject_name"] == subject_name and not is_aks_system(subject_name)
+]
+if subject_grants:
+    best = next((g for g in subject_grants if g["scope"] == "cluster"), subject_grants[0])
+    findings.append(make_finding("E8", sev, ..., best, ...))
 ```
 
-This check must:
-- Fire only on ClusterRoleBinding scope (not RoleBinding)
-- Produce a CRITICAL severity finding
-- Include the subject, role, and binding name in the finding output
-- Follow the existing finding structure exactly — do not invent new fields
+Apply the same pattern for the groups loop (match on `subject_kind == "Group"`).
 
 ### Files In Scope
-- `agents/rbac-agent/analyze.py` — detection logic only
-- `tests/` — add a test case for admin and edit cluster-scoped bindings
+- `.claude/skills/risk-agent/scripts/analyze.py` — E8 block only
 
-### Files Off-Limits
-- Same as Gap 1
+---
+
+## Gap 3 — Tests
+
+### Test File
+`tests/test_e8_azure_rbac_crossref.py`
+
+Follow the exact pattern from `tests/test_cis_admin_edit_cluster.py`:
+- Import `run_checks` from `analyze`
+- Build minimal grant dicts and entra dicts in-memory (no external calls)
+- Call `run_checks(grants, entra=entra)` and filter for `check == "E8"`
+
+### Required Test Cases
+
+| Test | Expected |
+|------|----------|
+| User with `Azure Kubernetes Service Cluster User Role` + K8s grant | 1 E8 finding, severity `HIGH` |
+| User with `Azure Kubernetes Service Cluster Admin Role` + K8s grant | 1 E8 finding, severity `CRITICAL` |
+| User with `Owner` + K8s grant | 1 E8 finding, severity `CRITICAL` |
+| Group with any AKS Azure role + K8s grant | 1 E8 finding, severity `CRITICAL` |
+| User with AKS Azure role but no K8s grant in grants list | 0 E8 findings |
+| User with K8s grant but no Azure role (`azure_rbac_roles: []`) | 0 E8 findings |
+| User with non-AKS Azure role (e.g. `"Storage Blob Data Reader"`) + K8s grant | 0 E8 findings |
+| AKS system subject (`system:serviceaccount:kube-system:...`) skipped | 0 E8 findings |
+| User with both cluster-scoped and namespace-scoped grants → cluster-scoped selected | `grant.scope == "cluster"` |
+
+---
+
+## Gap 4 — CLAUDE.md Cleanup
+
+Remove item 3 from the Known Gaps section in `.claude/CLAUDE.md` (the E8 entry). Renumber
+the remaining gaps so they are sequential (current 4→3, current 5→4).
+
+---
+
+## Files In Scope
+- `.claude/skills/risk-agent/scripts/analyze.py` — E8 block (lines ~562–608) only
+- `tests/test_e8_azure_rbac_crossref.py` — new file
+- `.claude/CLAUDE.md` — remove stale gap entry
+
+## Files Off-Limits
+- `.claude/skills/contracts/` — schemas are frozen, do not touch
+- `.claude/skills/entra-agent/` — collect.py is already complete, no changes needed
+- Any CIS detection rules — out of scope for this stage
 
 ---
 
 ## Success Criteria
+
 Self-evaluate all of the following before signaling completion:
 
-- [ ] `pods/exec` subresource now triggers CIS-5.1.4 finding
-- [ ] `pods/log` subresource now triggers CIS-5.1.4 finding
-- [ ] `"pods"` alone still triggers CIS-5.1.4 (no regression)
-- [ ] `admin` bound via ClusterRoleBinding produces a CRITICAL finding
-- [ ] `edit` bound via ClusterRoleBinding produces a CRITICAL finding
-- [ ] `admin` bound via RoleBinding (namespace-scoped) produces no finding
-- [ ] New findings follow existing finding structure — no new fields added
-- [ ] All existing tests still pass
-- [ ] New test cases added for each of the above scenarios
-- [ ] No files outside `agents/rbac-agent/` were modified
-- [ ] `.claude/skills/contracts/` schemas are unchanged
+- [ ] E8 emits `CRITICAL` when Azure role is `Azure Kubernetes Service Cluster Admin Role`
+- [ ] E8 emits `CRITICAL` when Azure role is `Owner`
+- [ ] E8 emits `CRITICAL` when Azure role is `User Access Administrator`
+- [ ] E8 emits `HIGH` when Azure role is `Azure Kubernetes Service Cluster User Role`
+- [ ] E8 emits `CRITICAL` for Group subjects regardless of which AKS Azure role
+- [ ] E8 selects cluster-scoped K8s grant when subject has both cluster and namespace bindings
+- [ ] No E8 when subject has Azure role but no K8s binding
+- [ ] No E8 when subject has K8s binding but no AKS-relevant Azure role
+- [ ] AKS system subjects are skipped
+- [ ] All new test cases pass
+- [ ] All existing tests still pass (`tests/test_cis514_subresource.py`, `tests/test_cis_admin_edit_cluster.py`)
+- [ ] CLAUDE.md Known Gaps no longer lists E8
+- [ ] No files outside the in-scope list were modified
 
 ---
 
 ## Constraints
 - Do not modify artifact contract schemas
-- Do not modify any Entra ID detection rules (E1-E9)
+- Do not modify entra-agent (`collect.py` is already complete)
 - Do not add new dependencies to `requirements.txt`
-- Commit after each gap is complete — two atomic commits minimum
 - Append all non-obvious decisions to `.claude/DECISIONS.md`
 
 ---
 
 ## Definition of Done
-All success criteria checked and passing. Final commit message:
-`"feat: fix CIS-5.1.4 subresource gap and add admin/edit cluster binding check"`
+All success criteria checked and passing. Commit message:
+`"feat: finalize E8 — severity escalation, best-grant selection, and tests"`

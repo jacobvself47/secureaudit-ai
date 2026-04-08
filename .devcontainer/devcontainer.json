@@ -1,23 +1,40 @@
 {
   "name": "SecureAudit AI - Autonomous Dev",
   "image": "mcr.microsoft.com/devcontainers/python:3.11",
+
   "features": {
+    // Kubernetes CLI — helm and minikube not needed
     "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
       "version": "latest",
       "helm": "none",
       "minikube": "none"
     },
-    "ghcr.io/devcontainers/features/git:1": {}
+    // Git — ensures latest version
+    "ghcr.io/devcontainers/features/git:1": {},
+    // GitHub CLI — required for automated PR creation
+    "ghcr.io/devcontainers/features/github-cli:1": {}
   },
+
   "mounts": [
-    "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    // Scoped kubeconfig — read-only, kind cluster only, cannot reach AKS
     "source=${localEnv:HOME}/.kube/kind-secureaudit,target=/root/.kube/config,type=bind,readonly"
   ],
+
   "workspaceFolder": "/workspace",
-  "postCreateCommand": "pip install -r requirements.txt",
+
+  "postCreateCommand": "pip install -r requirements.txt && git config --global user.email '${localEnv:GIT_EMAIL}' && git config --global user.name '${localEnv:GIT_NAME}'",
+
   "remoteEnv": {
+    // Anthropic API key for Claude Code
     "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}",
+    // GitHub token — gh CLI uses this to authenticate and open PRs
+    "GH_TOKEN": "${localEnv:GH_TOKEN}",
+    // Git identity — pulled from host environment
+    "GIT_EMAIL": "${localEnv:GIT_EMAIL}",
+    "GIT_NAME": "${localEnv:GIT_NAME}",
+    // Kubeconfig explicitly set to scoped file
     "KUBECONFIG": "/root/.kube/config"
   },
+
   "runArgs": ["--network=host"]
 }

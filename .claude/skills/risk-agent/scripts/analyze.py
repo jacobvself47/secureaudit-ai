@@ -725,6 +725,7 @@ def _collect_groups_with_access(grants: list, entra: dict | None) -> list:
                 "orphaned": eg.get("orphaned", False) if eg else None,
                 "member_count": eg.get("member_count", 0) if eg else None,
                 "members": eg.get("members", []) if eg else [],
+                "owners": eg.get("owners", []) if eg else [],
                 "roles": [],
                 "bindings": [],
             }

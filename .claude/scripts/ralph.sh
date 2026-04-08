@@ -4,7 +4,7 @@ set -e
 SPEC_FILE=".claude/SPEC.md"
 CLAUDE_FILE=".claude/CLAUDE.md"
 DECISIONS_FILE=".claude/DECISIONS.md"
-OFF_LIMITS=(".claude/skills/contracts" ".claude/skills/entra-agent/scripts/collect.py" "terraform")
+OFF_LIMITS=(".claude/skills/contracts" ".claude/skills/entra-agent/scripts/collect.py" ".claude/skills/report-agent/SKILL.md" "terraform")
 MAX_ITERATIONS=5
 ITERATION=0
 
@@ -101,9 +101,11 @@ echo "Decisions: cat $DECISIONS_FILE"
 
 # Open PR automatically on completion
 if grep -q "DONE" .claude/last-output.txt; then
-  echo "✅ Agent signaled completion — opening PR"
+  echo "✅ Agent signaled completion — pushing branch and opening PR"
+  git push -u origin "$(git branch --show-current)"
+  PR_TITLE=$(grep -A1 'Definition of Done' .claude/SPEC.md | grep -o '`"[^`]*"`' | tr -d '`"')
   gh pr create \
-    --title "feat: finalize E8 — severity escalation, best-grant selection, and tests" \
+    --title "${PR_TITLE:-$(git branch --show-current)}" \
     --body "$(printf '## Spec\n\n'; cat .claude/SPEC.md; printf '\n\n## Decisions\n\n'; cat .claude/DECISIONS.md 2>/dev/null || echo 'No decisions logged.')" \
     --base main \
     --head "$(git branch --show-current)" \

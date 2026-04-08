@@ -105,12 +105,6 @@ Never run against AKS to test code changes.
 
 ---
 
-## Known Gaps (implement next)
-
-1. **Group access appropriateness** — Add `groups_with_access[]` to `audit-findings.json` (all non-system Groups with any binding, even clean ones). report-agent reasons about each one.
-
----
-
 ## Severity Levels
 
 `CRITICAL` → `HIGH` → `MEDIUM` → `LOW`

@@ -1,1 +1,1 @@
-I need permission to write the test file. Please approve the file write to `/Users/jacobself/github/secureaudit-ai/tests/test_analyze.py`.
+I need permission to write to the tests directory. Can you approve the write to `/Users/jacobself/github/secureaudit-ai/tests/test_cis_detection.py`?

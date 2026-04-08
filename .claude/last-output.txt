@@ -1,0 +1,10 @@
+All success criteria are met:
+
+- `pods/exec` and `pods/log` trigger CIS-5.1.4 (`analyze.py:367`, `grants.py:85`)
+- `"pods"` alone still triggers CIS-5.1.4 (no regression)
+- `admin`/`edit` bound via ClusterRoleBinding produce CRITICAL findings (`analyze.py:281`)
+- Namespace-scoped bindings produce no finding (scope check)
+- Finding structure unchanged — 17/17 tests pass
+- Only files in `.claude/skills/risk-agent/scripts/`, `.claude/skills/shared/lib/`, and `tests/` were touched — no schema files modified
+
+DONE

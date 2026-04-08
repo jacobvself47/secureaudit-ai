@@ -107,13 +107,7 @@ Never run against AKS to test code changes.
 
 ## Known Gaps (implement next)
 
-1. **`pods/exec` subresource** — CIS-5.1.4 misses container exec grants because `"pods/exec"` doesn't match `"pods"` in a list. Fix: `any(r == "pods" or r.startswith("pods/") for r in resources)` in `summarize_rules()` and the CIS-5.1.4 check in `analyze.py`.
-
-2. **`admin`/`edit` ClusterRole cluster-wide** — Built-in `admin` bound via ClusterRoleBinding is functionally near-cluster-admin but has no wildcard resources, so existing rules miss it. Fix: new CRITICAL check in `analyze.py` for `role in ("admin", "edit")` with `scope == "cluster"`.
-
-3. **OIDC federation check (E9)** — When a subject resolves to a ServicePrincipal, call `az ad app federated-credential list --id <app-id>`. If empty, the SP authenticates via client secret. Add E9 finding for CI/CD identities without workload identity federation.
-
-4. **Group access appropriateness** — Add `groups_with_access[]` to `audit-findings.json` (all non-system Groups with any binding, even clean ones). report-agent reasons about each one.
+1. **Group access appropriateness** — Add `groups_with_access[]` to `audit-findings.json` (all non-system Groups with any binding, even clean ones). report-agent reasons about each one.
 
 ---
 

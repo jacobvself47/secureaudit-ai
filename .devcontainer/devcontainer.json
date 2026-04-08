@@ -1,0 +1,23 @@
+{
+  "name": "SecureAudit AI - Autonomous Dev",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "features": {
+    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
+      "version": "latest",
+      "helm": "none",
+      "minikube": "none"
+    },
+    "ghcr.io/devcontainers/features/git:1": {}
+  },
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    "source=${localEnv:HOME}/.kube/kind-secureaudit,target=/root/.kube/config,type=bind,readonly"
+  ],
+  "workspaceFolder": "/workspace",
+  "postCreateCommand": "pip install -r requirements.txt",
+  "remoteEnv": {
+    "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}",
+    "KUBECONFIG": "/root/.kube/config"
+  },
+  "runArgs": ["--network=host"]
+}

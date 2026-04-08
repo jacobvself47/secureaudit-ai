@@ -2,7 +2,7 @@
 name: rbac-agent
 description: Kubernetes RBAC domain agent. Enumerates all ClusterRoleBindings and RoleBindings from a live cluster and writes rbac-grants.json. This is the only agent with kubectl/Kubernetes API access. All other agents read from the artifact it produces.
 compatibility: Requires kubectl configured with an active cluster context and Python in .venv.
-allowed-tools: Bash(source *) Bash(python .claude/skills/rbac-agent/scripts/*) Bash(kubectl *)
+allowed-tools: Bash(source .venv/*) Bash(python .claude/skills/rbac-agent/scripts/*) Bash(kubectl get *) Bash(kubectl describe *) Bash(kubectl config *)
 ---
 
 # RBAC Agent

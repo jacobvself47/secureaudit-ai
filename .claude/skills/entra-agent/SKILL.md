@@ -2,7 +2,7 @@
 name: entra-agent
 description: Entra ID domain agent. Resolves Kubernetes RBAC principals (users, groups, service accounts) against Azure Active Directory. Reads rbac-grants.json and writes entra-context.json. This is the only agent with az CLI access.
 compatibility: Requires az CLI authenticated via `az login` and rbac-grants.json present in the working directory (produced by rbac-agent).
-allowed-tools: Bash(source *) Bash(python .claude/skills/entra-agent/scripts/*) Bash(az *) Read
+allowed-tools: Bash(source .venv/*) Bash(python .claude/skills/entra-agent/scripts/*) Bash(az ad *) Bash(az role assignment list *) Bash(az identity list*) Bash(az account show*) Read
 ---
 
 # Entra Agent
